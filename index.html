@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farmer Theory — Old World capital settler math (source-grounded)</title>
+<style>
+  :root{
+    --bg:#16110b;--panel:#211a11;--panel2:#2c2316;--ink:#efe6d2;--dim:#b9a884;
+    --gold:#e7b85a;--gold2:#caa047;--green:#7fc06a;--blue:#6fb3d6;--red:#d97c6b;
+    --line:#3c3120;--spam:#6fb3d6;--farmer:#7fc06a;--civics:#b06ad0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background-image:radial-gradient(1200px 600px at 80% -10%,rgba(231,184,90,.07),transparent 60%);}
+  .wrap{max-width:1100px;margin:0 auto;padding:34px 22px 90px}
+  h1{font-size:30px;margin:0 0 4px;color:var(--gold);font-family:Georgia,serif}
+  h2{font-size:21px;color:var(--gold);margin:40px 0 10px;font-family:Georgia,serif;border-bottom:1px solid var(--line);padding-bottom:6px}
+  h3{font-size:16px;color:var(--gold2);margin:20px 0 8px}
+  .sub{color:var(--dim);margin:0 0 8px}
+  p{margin:10px 0}
+  code{background:#0d0a06;padding:1px 6px;border-radius:4px;color:#f0d79a;font-size:12.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+  .tag{font-size:11px;padding:1px 7px;border-radius:4px;background:#0d0a06;border:1px solid var(--line);color:var(--dim)}
+  .key{color:var(--gold2);font-weight:600}
+  ul{margin:8px 0;padding-left:20px} li{margin:5px 0}
+  .note{font-size:13px;color:var(--dim);background:#0e0b07;border-left:3px solid var(--gold2);padding:8px 12px;border-radius:0 8px 8px 0;margin:10px 0}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  th,td{padding:6px 9px;text-align:center;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  td.lead{color:var(--green);font-weight:700} td.behind{color:var(--red)}
+  .src td:last-child,.l td{text-align:left}
+  .src td:first-child,.src th:first-child,.l th{text-align:left}
+  .src td:last-child{color:var(--dim);font-size:12px}
+  .stack{display:flex;height:32px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:8px 0}
+  .seg{display:flex;align-items:center;justify-content:center;font-size:11px;color:#10130d;font-weight:700;white-space:nowrap;overflow:hidden}
+  .sim{display:grid;grid-template-columns:330px 1fr;gap:20px}
+  @media(max-width:820px){.sim{grid-template-columns:1fr}}
+  .controls label{display:flex;justify-content:space-between;margin:11px 0 2px;font-size:12.5px;color:var(--dim)}
+  .controls label b{color:var(--ink);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--gold)}
+  select{width:100%;background:#0d0a06;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;margin-top:3px}
+  .seph{margin:16px 0 4px;color:var(--gold2);font-size:12px;text-transform:uppercase;letter-spacing:.7px;border-top:1px solid var(--line);padding-top:12px}
+  canvas{width:100%;height:auto;background:#0d0a06;border:1px solid var(--line);border-radius:10px}
+  .legend{display:flex;gap:18px;font-size:13px;margin:8px 2px;flex-wrap:wrap}
+  .legend i{width:22px;height:3px;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:2px}
+  .verdict{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  @media(max-width:560px){.verdict{grid-template-columns:1fr}}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .stat .lbl{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .stat .v{font-size:22px;font-weight:700;color:var(--gold);line-height:1.15}
+  .stat .v.green{color:var(--green)} .stat .v.blue{color:var(--blue)}
+  .effbox{background:#0e0b07;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;margin-top:6px}
+  .effbox .row{display:flex;justify-content:space-between;border-bottom:1px solid #2a2114;padding:3px 0}
+  .effbox .row:last-child{border:0}
+  .effbox b{color:#f3e2b4}
+  .muted{color:#8a7c5e}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>🌾 Farmer Theory</h1>
+<p class="sub">When does pausing capital settler-spam to build a <b>Farmer specialist</b> on a grain farm pay off — in <b>settlers out</b>. Now configurable by <b>starting family, leader archetype, and leader strength</b>. <b>Every number traced to Old World's XML &amp; C# source</b> (<code>…/Old World/Reference/</code>).</p>
+
+<div class="card">
+<b>TL;DR</b>
+<ul>
+<li><span class="key">It's a build-queue question.</span> One queue (<code>City.cs mllBuildQueue</code>); only the front item builds, queued items decay. Settler (from <code>GROWTH</code>) and Farmer (from <code>CIVICS</code>) are mutually exclusive — the Farmer <b>pauses settlers for its build time</b> = <code>ceil(farmer civics cost ÷ civics rate)</code>. Banking civics does <b>not</b> speed it.</li>
+<li><span class="key">The citizen is free.</span> Cities start with <code>1 citizen</code> that otherwise produces nothing, so the first Farmer eats it for free.</li>
+<li><span class="key">Landowners change everything.</span> <code>+2.0 growth</code> city-wide <b>and −50% rural-specialist train time</b> → the Farmer costs <b>20 civics, not 40</b> (≈2 turns, not 4). That's why "with Landowners + granary + farmer" the second settler barely slips.</li>
+<li><span class="key">Leader strength barely matters here.</span> <b>No rating modifies GROWTH</b> (ratings only %-boost civics/training/science/money). Strength only helps via <b>Charisma → Civics → faster Farmer</b>, and only for Charisma archetypes (Orator/Diplomat/Judge). Builder helps differently: <code>−1 build turn</code> on the <i>worker</i> (farm/granary online a turn sooner).</li>
+</ul>
+</div>
+
+<div class="card" style="border-color:#4a3c22">
+<h3 style="margin-top:0">📜 Grounded in the game source</h3>
+<table class="src">
+<tr><th>Mechanic</th><th>Value</th><th>File</th></tr>
+<tr><td>One build queue, front-only, decay</td><td><code>single</code></td><td>City.cs mllBuildQueue / decayBuildQueue</td></tr>
+<tr><td>Settler — from GROWTH</td><td><code>80 + 10·n</code></td><td>unit.xml iProduction / iProductionCity</td></tr>
+<tr><td>Farmer — from CIVICS, eats 1 citizen</td><td><code>40 civics</code></td><td>specialist.xml · City.cs:10695</td></tr>
+<tr><td>Farmer cost escalates per specialist built</td><td><code>+5%</code> each</td><td>globalsInt SPECIALIST_COST_PRODUCED_MODIFIER</td></tr>
+<tr><td>Grain on a farm</td><td><code>+2.0 growth</code> (→3.2 w/ granary)</td><td>improvementClass.xml aaiResourceYieldOutput</td></tr>
+<tr><td>Granary — worker-built, off-queue</td><td><code>+2.0, +60% adj</code></td><td>improvement.xml · iBuildTurns 4</td></tr>
+<tr><td>Family — Landowners</td><td><code>+2.0 growth, −50% rural train</code></td><td>effectCity.xml FAMILYCLASS_LANDOWNERS</td></tr>
+<tr><td>Archetype — Builder (governor)</td><td><code>−1 build turn</code> (worker)</td><td>trait.xml · effectCity EFFECTCITY_TRAIT_BUILDER · Player.cs:19757</td></tr>
+<tr><td>Generic governor (any leader)</td><td><code>+2.0 growth</code></td><td>yield.xml iLeaderGovernor 20</td></tr>
+<tr><td>Rating → governor yield (% modifier)</td><td><code>2 × triangleBoost(rating)</code></td><td>rating.xml · InfoHelpers boostRating · Utils.triangleBoost</td></tr>
+<tr><td>Ratings: Cha→Civics, Dis→Money, Cou→Train, Wis→Sci</td><td><code>none → Growth</code></td><td>rating.xml aiYieldGovernorModifier</td></tr>
+</table>
+<p class="note" style="margin-bottom:0">Yields ×10 in XML. <code>triangleBoost(n)=n(n+1+2)/2</code> style growth: rating 1→×3, 2→×6, 3→×10 on the base-2 modifier (so Cha 3 governor = +20% civics).</p>
+</div>
+
+<!-- GROWTH ANATOMY -->
+<h2>1 · Where every growth point comes from</h2>
+<div class="card">
+<div class="stack" id="stack"></div>
+<p style="margin-top:10px">Base <b>+8</b>, Connected <b>+2</b>, Governor <b>+2</b> (any leader, <code>iLeaderGovernor</code>); grain farm <b>+2.0</b> which the adjacent granary scales <b>×1.6 → +3.2</b>; Granary flat <b>+2.0</b>; Farmer <b>+1.0</b> plus <b>50%×3.2 = +1.6</b>. Without Farmer = <b>17.2</b>; with = <b>19.8</b> (Δ <b>+2.6</b>, plus a quiet +1.0 science). A growth-family like <b>Landowners adds +2.0</b> on top of all of it.</p>
+<div class="note">Pre-granary the grain farm is only +2.0 (no ×1.6), so the city sits at <b>14.0</b> — your "<code>GROWTH +14</code>" screenshot.</div>
+</div>
+
+<!-- COURT -->
+<h2>2 · Your court — what actually moves settlers</h2>
+<div class="grid2">
+<div class="card">
+<h3 style="margin-top:0">Families that matter</h3>
+<table class="l"><tr><th>Family</th><th>Settler-relevant effect</th></tr>
+<tr><td style="color:var(--green)">Landowners</td><td>+2.0 growth · Farmer ½ cost (20 civics)</td></tr>
+<tr><td>Patrons / Sages</td><td>+2.0 civics → faster Farmer</td></tr>
+<tr><td>Statesmen</td><td>+1.0 civics (scales w/ opinion)</td></tr>
+<tr><td class="muted">Champions, Riders, Hunters</td><td class="muted">+training — nothing here</td></tr>
+<tr><td class="muted">Clerics, Traders, Artisans</td><td class="muted">happy/money/culture — nothing here</td></tr>
+</table>
+</div>
+<div class="card">
+<h3 style="margin-top:0">Archetypes that matter</h3>
+<table class="l"><tr><th>Archetype</th><th>Governor effect</th></tr>
+<tr><td style="color:var(--green)">Builder</td><td>−1 build turn → farm/granary 1 turn sooner</td></tr>
+<tr><td>Orator / Diplomat / Judge</td><td>Charisma → +civics% → faster Farmer</td></tr>
+<tr><td class="muted">Scholar, Schemer</td><td class="muted">Wisdom → science — nothing here</td></tr>
+<tr><td class="muted">Hero, Commander, Zealot</td><td class="muted">Courage → training — nothing here</td></tr>
+<tr><td class="muted">Tactician</td><td class="muted">money/science — nothing here</td></tr>
+</table>
+<p class="note" style="margin-bottom:0">Every governor still gives the generic <b>+2.0 growth</b>. Strength only bites through Charisma→Civics.</p>
+</div>
+</div>
+
+<!-- SIMULATOR -->
+<h2>3 · Simulator — pick your start, watch the settlers</h2>
+<p><span style="color:var(--spam)">●&nbsp;Spam</span> never leaves the settler queue. <span style="color:var(--farmer)">●&nbsp;Farmer</span> spends its (family-discounted) queue time on the Farmer — settlers paused, shaded — then runs faster.</p>
+<div class="card">
+<div class="sim">
+  <div class="controls">
+    <div class="seph">Your start</div>
+    <label>Starting family</label><select id="family"></select>
+    <label style="margin-top:8px">Leader archetype (governor)</label><select id="arch"></select>
+    <label style="margin-top:8px">Leader strength (primary rating) <b id="v_str">2</b></label><input type="range" id="str" min="0" max="6" step="1" value="2">
+
+    <div class="seph">Infra timing (worker)</div>
+    <label>Farm done turn <b id="v_tf">3</b></label><input type="range" id="tf" min="1" max="8" step="1" value="3">
+    <label>Granary done turn <b id="v_tg">6</b></label><input type="range" id="tg" min="3" max="14" step="1" value="6">
+
+    <div class="seph">Economy</div>
+    <label>Base civics rate /turn <b id="v_cv">10</b></label><input type="range" id="cv" min="4" max="20" step="1" value="10">
+    <label>First settler 🍏 <b id="v_sb">80</b></label><input type="range" id="sb" min="60" max="110" step="5" value="80">
+    <label>Horizon (turns) <b id="v_T">55</b></label><input type="range" id="T" min="20" max="90" step="1" value="55">
+
+    <div class="seph">Computed</div>
+    <div class="effbox" id="eff"></div>
+  </div>
+  <div>
+    <canvas id="chart" width="720" height="380"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--spam)"></i>Spam</span>
+      <span><i style="background:var(--farmer)"></i>Granary + Farmer</span>
+      <span><i style="background:var(--gold)"></i>Break-even</span>
+      <span><i style="background:#3a4a2a;height:10px"></i>Farmer holds queue</span>
+    </div>
+    <div class="verdict">
+      <div class="stat"><div class="lbl">Break-even</div><div class="v" id="be">—</div></div>
+      <div class="stat"><div class="lbl">Settlers @ horizon · Spam</div><div class="v blue" id="endA">—</div></div>
+      <div class="stat"><div class="lbl">Settlers @ horizon · Farmer</div><div class="v green" id="endB">—</div></div>
+    </div>
+  </div>
+</div>
+<h3>Settler pop turns</h3>
+<table id="tbl"><thead><tr><th>Settler #</th><th style="color:var(--spam)">Spam</th><th style="color:var(--farmer)">Farmer</th><th>Δ turns</th></tr></thead><tbody></tbody></table>
+<p class="note" id="readout"></p>
+</div>
+
+<!-- TAKEAWAYS -->
+<h2>4 · How to read it</h2>
+<div class="card">
+<ul>
+<li><b>Granary always.</b> Worker-built, off-queue; it turns grain growth into 3.2 and is what makes the Farmer's half worth 1.6.</li>
+<li><b>Landowners → Farmer is almost free.</b> Half-cost Farmer (~2 queue-turns) + the +2 growth means the Farmer path barely slips the next settler and pulls ahead within a couple settlers. On a Landowners grain capital, just do it.</li>
+<li><b>Non-growth family → it's the queue-time trade.</b> Full 40-civics Farmer (~3–4 turns) vs +2.6 growth; break-even is a handful of settlers — still usually worth it on a settler capital.</li>
+<li><b>Builder leader</b> shaves a turn off farm & granary (worker), ramping growth earlier — small, free, helps both lines.</li>
+<li><b>Strength is a near-no-op for settlers.</b> Push it to 6 on a non-Charisma archetype and nothing changes — because no rating touches growth. It only matters as Charisma→Civics→Farmer-speed.</li>
+<li><b>Don't stack Farmers early.</b> Each specialist already built adds <code>+5%</code> to the next one's cost, and #2+ need a <i>grown</i> citizen (100+10·size growth) + add discontent. That's the "second, not always."</li>
+</ul>
+</div>
+<p class="sub" style="margin-top:22px">Traced to <code>Old World/Reference/{XML,Source}</code>. Growth/civics are derived from your court; food &amp; production deliberately excluded. Open via <code>file://</code>.</p>
+</div>
+
+<script>
+// ---------- data (source-grounded) ----------
+const FAMILIES={
+  Landowners:{g:2.0,civ:0,rural:-50,note:"+2.0 growth · Farmer −50% rural (20 civics)"},
+  Patrons:{g:0,civ:2.0,rural:0,note:"+2.0 civics → faster Farmer"},
+  Sages:{g:0,civ:2.0,rural:0,note:"+2.0 civics (+sci/specialist)"},
+  Statesmen:{g:0,civ:1.0,rural:0,note:"+1.0 civics (opinion-scaled)"},
+  Champions:{g:0,civ:0,rural:0,note:"+2 training — no settler effect"},
+  Riders:{g:0,civ:0,rural:0,note:"+2 training, always connected"},
+  Hunters:{g:0,civ:0,rural:0,note:"+2 training — no settler effect"},
+  Clerics:{g:0,civ:0,rural:0,note:"+1 happiness — no settler effect"},
+  Traders:{g:0,civ:0,rural:0,note:"money/specialist — no settler effect"},
+  Artisans:{g:0,civ:0,rural:0,note:"+4 culture — no settler effect"}
+};
+const ARCH={
+  Builder:{rating:"Discipline",civics:false,infra:true,note:"−1 build turn (farm/granary sooner)"},
+  Orator:{rating:"Charisma",civics:true,infra:false,note:"Charisma→civics% · +happiness"},
+  Diplomat:{rating:"Charisma",civics:true,infra:false,note:"Charisma→civics%"},
+  Judge:{rating:"Charisma",civics:true,infra:false,note:"Charisma→civics% · gold-hurry specialists"},
+  Scholar:{rating:"Wisdom",civics:false,infra:false,note:"Wisdom→science — no settler effect"},
+  Schemer:{rating:"Wisdom",civics:false,infra:false,note:"Wisdom→science — no settler effect"},
+  Tactician:{rating:"Discipline",civics:false,infra:false,note:"money/science — no settler effect"},
+  Hero:{rating:"Courage",civics:false,infra:false,note:"Courage→training — no settler effect"},
+  Commander:{rating:"Courage",civics:false,infra:false,note:"training/money — no settler effect"},
+  Zealot:{rating:"Courage",civics:false,infra:false,note:"Courage→training — no settler effect"}
+};
+const $=id=>document.getElementById(id);
+const triBoost=n=>n===0?0:Math.sign(n)*((Math.abs(n)+1)*(Math.abs(n)+2)/2);
+
+// growth stack viz
+(function(){
+  const segs=[["Base",8,"#8a7a4e"],["Connected",2,"#7a8a9a"],["Governor",2,"#b06ad0"],
+    ["Farm grain ×granary →3.2",3.2,"#5fa84e"],["Granary",2,"#c98a45"],["Farmer",1,"#e7b85a"],["Farmer ½×farm",1.6,"#f0d79a"]];
+  const tot=segs.reduce((a,s)=>a+s[1],0);
+  $('stack').innerHTML=segs.map(s=>`<div class="seg" style="width:${s[1]/tot*100}%;background:${s[2]}" title="${s[0]}: +${s[1]}">${s[1]>=1.6?s[0]:''}</div>`).join('');
+})();
+
+// populate selects
+Object.keys(FAMILIES).forEach(k=>$('family').appendChild(new Option(k,k)));
+Object.keys(ARCH).forEach(k=>$('arch').appendChild(new Option(k,k)));
+$('family').value='Landowners'; $('arch').value='Builder';
+
+['family','arch','str','tf','tg','cv','sb','T'].forEach(id=>$(id).addEventListener('input',run));
+
+function model(p){
+  const fam=FAMILIES[p.family], arch=ARCH[p.arch];
+  const civMod = arch.civics ? 2*triBoost(p.str) : 0;          // % modifier to civics
+  const civics = (p.cv + fam.civ)*(1+civMod/100);
+  const farmerCost = Math.max(1, Math.round(40*(1+fam.rural/100))); // 40 → 20 for Landowners
+  const fTurns = Math.max(1, Math.ceil(farmerCost/civics));
+  const tf = Math.max(1, p.tf - (arch.infra?1:0));
+  const tg = Math.max(tf+1, p.tg - (arch.infra?1:0));
+  const fg=fam.g;
+  return {fam,arch,civMod,civics,farmerCost,fTurns,tf,tg,fg,
+          r0:12+fg, r1:14+fg, r2:17.2+fg, r3:19.8+fg};
+}
+
+function simulate(m,p,isB){
+  const fStart=isB?m.tg:Infinity, fEnd=isB?(m.tg+m.fTurns):Infinity;
+  let sp=0, cost=p.sb, built=0; const cum=[],turns=[];
+  for(let t=1;t<=p.T;t++){
+    let r; if(t<m.tf)r=m.r0; else if(t<m.tg)r=m.r1; else r=m.r2;
+    if(isB && t>=fEnd) r=m.r3;
+    const pausing = isB && t>=fStart && t<fEnd;
+    if(!pausing){ sp+=r; while(sp>=cost){built++;turns.push(t);sp-=cost;cost+=10;} }
+    cum.push(built);
+  }
+  return {cum,turns,fStart,fEnd};
+}
+
+function run(){
+  const p={family:$('family').value, arch:$('arch').value};
+  ['str','tf','tg','cv','sb','T'].forEach(id=>p[id]=parseFloat($(id).value));
+  ['str','tf','tg','cv','sb','T'].forEach(id=>$('v_'+id).textContent=p[id]);
+  const m=model(p);
+
+  const A=simulate(m,p,false), B=simulate(m,p,true);
+  let be=null;
+  for(let t=Math.floor(B.fEnd);t<p.T;t++){ if(B.cum[t]>=A.cum[t]){let ok=1;for(let u=t;u<p.T;u++)if(B.cum[u]<A.cum[u]){ok=0;break;}if(ok){be=t+1;break;}} }
+  $('be').textContent=be?('T'+be):'never'; $('be').style.color=be?'var(--gold)':'var(--red)';
+  $('endA').textContent=A.cum[p.T-1]; $('endB').textContent=B.cum[p.T-1];
+
+  // effect summary
+  const strNote = m.arch.civics ? `+${Math.round(m.civMod)}% civics` : 'no civics effect (growth isn’t rating-scaled)';
+  $('eff').innerHTML=
+    `<div class="row"><span>Growth @ granary</span><b>${m.r2.toFixed(1)} 🍏${m.fg?` <span class="muted">(${m.fam.g>0?'+'+m.fam.g+' family':''})</span>`:''}</b></div>`+
+    `<div class="row"><span>Growth @ farmer</span><b>${m.r3.toFixed(1)} 🍏</b></div>`+
+    `<div class="row"><span>Civics rate</span><b>${m.civics.toFixed(1)}/turn</b></div>`+
+    `<div class="row"><span>Farmer cost</span><b>${m.farmerCost} civics${m.fam.rural?` <span class="muted">(−50% rural)</span>`:''}</b></div>`+
+    `<div class="row"><span>Farmer holds queue</span><b>${m.fTurns} turn${m.fTurns>1?'s':''}</b></div>`+
+    `<div class="row"><span>Farm / Granary done</span><b>T${m.tf} / T${m.tg}${m.arch.infra?` <span class="muted">(−1 Builder)</span>`:''}</b></div>`+
+    `<div class="row"><span>Strength ${p.str} → ${m.arch.rating}</span><b>${strNote}</b></div>`;
+
+  // table
+  let rows='';
+  for(let i=0;i<10;i++){const a=A.turns[i],b=B.turns[i];const d=(a!=null&&b!=null)?b-a:'';
+    const cl=d===''?'':(d<0?'lead':(d>0?'behind':''));
+    rows+=`<tr><td>${i+1}</td><td>${a!=null?'T'+a:'—'}</td><td>${b!=null?'T'+b:'—'}</td><td class="${cl}">${d===''?'':(d>0?'+'+d:d)}</td></tr>`;}
+  document.querySelector('#tbl tbody').innerHTML=rows;
+
+  // readout
+  let msg=`<b>${p.family} · ${p.arch}</b>: Farmer = <b>${m.farmerCost} civics</b> → holds the queue <b>${m.fTurns} turn${m.fTurns>1?'s':''}</b>, then runs <b>+${(m.r3-m.r2).toFixed(1)}🍏/turn</b> over spam. `;
+  msg+=be?`Cumulative settlers cross at <b>T${be}</b> (${B.cum[p.T-1]} vs ${A.cum[p.T-1]} by T${p.T}). `:`No crossover within ${p.T} turns. `;
+  if(m.fam.g>0 && m.fam.rural) msg+=`Landowners is doing the heavy lifting: half-cost Farmer <i>and</i> +2 growth.`;
+  else if(m.arch.civics && p.str>=3) msg+=`High Charisma is buying real Farmer speed via civics.`;
+  else if(!m.arch.civics && p.str>0) msg+=`Note strength ${p.str} changed nothing — this archetype's rating doesn't feed growth or civics.`;
+  $('readout').innerHTML=msg;
+
+  drawChart(A,B,p,m,be);
+}
+
+function drawChart(A,B,p,m,be){
+  const c=$('chart'),x=c.getContext('2d');const W=c.width,H=c.height,pL=42,pB=28,pT=14,pR=14;
+  x.clearRect(0,0,W,H);
+  const maxS=Math.max(A.cum[p.T-1],B.cum[p.T-1],1);
+  const X=t=>pL+(t-1)/(p.T-1)*(W-pL-pR), Y=s=>H-pB-(s/maxS)*(H-pT-pB);
+  if(isFinite(B.fEnd)){x.fillStyle='rgba(90,130,70,.18)';x.fillRect(X(B.fStart),pT,Math.max(2,X(B.fEnd)-X(B.fStart)),H-pT-pB);}
+  x.strokeStyle='#2a2114';x.fillStyle='#8a7c5e';x.font='11px sans-serif';
+  for(let s=0;s<=maxS;s++){const y=Y(s);x.beginPath();x.moveTo(pL,y);x.lineTo(W-pR,y);x.stroke();x.fillText(s,6,y+3);}
+  for(let t=1;t<=p.T;t+=Math.ceil(p.T/12))x.fillText('T'+t,X(t)-6,H-9);
+  if(be){x.strokeStyle='#e7b85a';x.setLineDash([4,4]);x.beginPath();x.moveTo(X(be),pT);x.lineTo(X(be),H-pB);x.stroke();x.setLineDash([]);x.fillStyle='#e7b85a';x.fillText('break-even T'+be,X(be)+4,pT+12);}
+  const plot=(d,col)=>{x.strokeStyle=col;x.lineWidth=2.4;x.beginPath();
+    for(let t=1;t<=p.T;t++){if(t===1)x.moveTo(X(1),Y(d.cum[0]));else{x.lineTo(X(t),Y(d.cum[t-2]));x.lineTo(X(t),Y(d.cum[t-1]));}}x.stroke();};
+  plot(A,'#6fb3d6');plot(B,'#7fc06a');
+}
+run();
+</script>
+</body>
+</html>

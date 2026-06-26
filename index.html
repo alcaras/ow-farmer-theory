@@ -92,7 +92,11 @@
 <tr><td>Generic governor (any leader)</td><td><code>+2.0 growth</code></td><td>yield.xml iLeaderGovernor 20</td></tr>
 <tr><td>Rating → governor yield (% modifier)</td><td><code>2 × triangleBoost(rating)</code></td><td>rating.xml · InfoHelpers boostRating · Utils.triangleBoost</td></tr>
 <tr><td>Ratings: Cha→Civics, Dis→Money, Cou→Train, Wis→Sci</td><td><code>none → Growth</code></td><td>rating.xml aiYieldGovernorModifier</td></tr>
+<tr><td>Babylonia nation — growth modifier</td><td><code>+20%</code> (+1 sci)</td><td>effectCity EFFECTCITY_NATION_BABYLONIA aiYieldModifier</td></tr>
+<tr><td>Hanging Gardens wonder — all cities</td><td><code>+20% growth</code></td><td>improvement HANGING_GARDENS → EFFECTCITY_..._ALL</td></tr>
+<tr><td>Freedom law — all cities</td><td><code>+20% growth</code> (+rebel resist)</td><td>effectCity EFFECTCITY_LAW_FREEDOM aiYieldModifier</td></tr>
 </table>
+<p class="note" style="margin-bottom:0;margin-top:8px">These three are <b>% modifiers</b> (<code>aiYieldModifier</code>), not flat — they multiply the whole growth sum and <b>stack additively</b> (all three = ×1.6). Because they scale the Farmer's +2.6 too while its queue cost stays fixed, more growth% = <b>faster Farmer payback</b>.</p>
 <p class="note" style="margin-bottom:0">Yields ×10 in XML. <code>triangleBoost(n)=n(n+1+2)/2</code> style growth: rating 1→×3, 2→×6, 3→×10 on the base-2 modifier (so Cha 3 governor = +20% civics).</p>
 </div>
 
@@ -140,6 +144,13 @@
     <label>Starting family</label><select id="family"></select>
     <label style="margin-top:8px">Leader archetype (governor)</label><select id="arch"></select>
     <label style="margin-top:8px">Leader strength (primary rating) <b id="v_str">2</b></label><input type="range" id="str" min="0" max="6" step="1" value="2">
+
+    <div class="seph">Empire growth modifiers (× total growth)</div>
+    <label style="cursor:pointer"><span><input type="checkbox" id="bab"> Babylonia nation +20%</span></label>
+    <label style="cursor:pointer"><span><input type="checkbox" id="hg"> Hanging Gardens +20%</span><b>built T<span id="v_hgT">20</span></b></label>
+    <input type="range" id="hgT" min="1" max="70" step="1" value="20">
+    <label style="cursor:pointer"><span><input type="checkbox" id="free"> Freedom law +20%</span><b>enacted T<span id="v_freeT">12</span></b></label>
+    <input type="range" id="freeT" min="1" max="70" step="1" value="12">
 
     <div class="seph">Infra timing (worker)</div>
     <label>Farm done turn <b id="v_tf">3</b></label><input type="range" id="tf" min="1" max="8" step="1" value="3">
@@ -230,7 +241,8 @@ Object.keys(FAMILIES).forEach(k=>$('family').appendChild(new Option(k,k)));
 Object.keys(ARCH).forEach(k=>$('arch').appendChild(new Option(k,k)));
 $('family').value='Landowners'; $('arch').value='Builder';
 
-['family','arch','str','tf','tg','cv','sb','T'].forEach(id=>$(id).addEventListener('input',run));
+['family','arch','str','tf','tg','cv','sb','T','hgT','freeT'].forEach(id=>$(id).addEventListener('input',run));
+['bab','hg','free'].forEach(id=>$(id).addEventListener('change',run));
 
 function model(p){
   const fam=FAMILIES[p.family], arch=ARCH[p.arch];
@@ -241,16 +253,22 @@ function model(p){
   const tf = Math.max(1, p.tf - (arch.infra?1:0));
   const tg = Math.max(tf+1, p.tg - (arch.infra?1:0));
   const fg=fam.g;
+  // empire-wide GROWTH % modifiers (aiYieldModifier) — applied to the whole flat sum
   return {fam,arch,civMod,civics,farmerCost,fTurns,tf,tg,fg,
-          r0:12+fg, r1:14+fg, r2:17.2+fg, r3:19.8+fg};
+          flat0:12+fg, flat1:14+fg, flat2:17.2+fg, flat3:19.8+fg,
+          bab:p.bab, hg:p.hg, hgT:p.hgT, free:p.free, freeT:p.freeT};
+}
+function growthMod(m,t){ // % at turn t
+  return (m.bab?20:0) + (m.hg && t>=m.hgT?20:0) + (m.free && t>=m.freeT?20:0);
 }
 
 function simulate(m,p,isB){
   const fStart=isB?m.tg:Infinity, fEnd=isB?(m.tg+m.fTurns):Infinity;
   let sp=0, cost=p.sb, built=0; const cum=[],turns=[];
   for(let t=1;t<=p.T;t++){
-    let r; if(t<m.tf)r=m.r0; else if(t<m.tg)r=m.r1; else r=m.r2;
-    if(isB && t>=fEnd) r=m.r3;
+    let flat; if(t<m.tf)flat=m.flat0; else if(t<m.tg)flat=m.flat1; else flat=m.flat2;
+    if(isB && t>=fEnd) flat=m.flat3;
+    const r = flat * (1 + growthMod(m,t)/100);   // empire modifiers scale the whole sum
     const pausing = isB && t>=fStart && t<fEnd;
     if(!pausing){ sp+=r; while(sp>=cost){built++;turns.push(t);sp-=cost;cost+=10;} }
     cum.push(built);
@@ -260,9 +278,11 @@ function simulate(m,p,isB){
 
 function run(){
   const p={family:$('family').value, arch:$('arch').value};
-  ['str','tf','tg','cv','sb','T'].forEach(id=>p[id]=parseFloat($(id).value));
-  ['str','tf','tg','cv','sb','T'].forEach(id=>$('v_'+id).textContent=p[id]);
+  ['str','tf','tg','cv','sb','T','hgT','freeT'].forEach(id=>p[id]=parseFloat($(id).value));
+  ['str','tf','tg','cv','sb','T','hgT','freeT'].forEach(id=>$('v_'+id).textContent=p[id]);
+  p.bab=$('bab').checked; p.hg=$('hg').checked; p.free=$('free').checked;
   const m=model(p);
+  const modMax=growthMod(m,p.T); // modifier with everything active by horizon
 
   const A=simulate(m,p,false), B=simulate(m,p,true);
   let be=null;
@@ -272,9 +292,12 @@ function run(){
 
   // effect summary
   const strNote = m.arch.civics ? `+${Math.round(m.civMod)}% civics` : 'no civics effect (growth isn’t rating-scaled)';
+  const mk=1+modMax/100;
+  const modParts=[m.bab&&'Babylonia',m.hg&&'HG',m.free&&'Freedom'].filter(Boolean).join('+');
   $('eff').innerHTML=
-    `<div class="row"><span>Growth @ granary</span><b>${m.r2.toFixed(1)} 🍏${m.fg?` <span class="muted">(${m.fam.g>0?'+'+m.fam.g+' family':''})</span>`:''}</b></div>`+
-    `<div class="row"><span>Growth @ farmer</span><b>${m.r3.toFixed(1)} 🍏</b></div>`+
+    `<div class="row"><span>Growth modifier</span><b>${modMax?`+${modMax}% <span class="muted">(${modParts})</span>`:'—'}</b></div>`+
+    `<div class="row"><span>Growth @ granary</span><b>${(m.flat2*mk).toFixed(1)} 🍏${m.fam.g>0?` <span class="muted">(+${m.fam.g} fam)</span>`:''}</b></div>`+
+    `<div class="row"><span>Growth @ farmer</span><b>${(m.flat3*mk).toFixed(1)} 🍏</b></div>`+
     `<div class="row"><span>Civics rate</span><b>${m.civics.toFixed(1)}/turn</b></div>`+
     `<div class="row"><span>Farmer cost</span><b>${m.farmerCost} civics${m.fam.rural?` <span class="muted">(−50% rural)</span>`:''}</b></div>`+
     `<div class="row"><span>Farmer holds queue</span><b>${m.fTurns} turn${m.fTurns>1?'s':''}</b></div>`+
@@ -289,8 +312,10 @@ function run(){
   document.querySelector('#tbl tbody').innerHTML=rows;
 
   // readout
-  let msg=`<b>${p.family} · ${p.arch}</b>: Farmer = <b>${m.farmerCost} civics</b> → holds the queue <b>${m.fTurns} turn${m.fTurns>1?'s':''}</b>, then runs <b>+${(m.r3-m.r2).toFixed(1)}🍏/turn</b> over spam. `;
+  const adv=((m.flat3-m.flat2)*(1+modMax/100)).toFixed(1);
+  let msg=`<b>${p.family} · ${p.arch}${modMax?` · +${modMax}% growth`:''}</b>: Farmer = <b>${m.farmerCost} civics</b> → holds the queue <b>${m.fTurns} turn${m.fTurns>1?'s':''}</b>, then runs <b>+${adv}🍏/turn</b> over spam. `;
   msg+=be?`Cumulative settlers cross at <b>T${be}</b> (${B.cum[p.T-1]} vs ${A.cum[p.T-1]} by T${p.T}). `:`No crossover within ${p.T} turns. `;
+  if(modMax>0) msg+=`The +${modMax}% modifier scales the Farmer's gain too (queue cost is unchanged), so it pays back faster. `;
   if(m.fam.g>0 && m.fam.rural) msg+=`Landowners is doing the heavy lifting: half-cost Farmer <i>and</i> +2 growth.`;
   else if(m.arch.civics && p.str>=3) msg+=`High Charisma is buying real Farmer speed via civics.`;
   else if(!m.arch.civics && p.str>0) msg+=`Note strength ${p.str} changed nothing — this archetype's rating doesn't feed growth or civics.`;

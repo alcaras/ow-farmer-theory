@@ -56,6 +56,15 @@
   .effbox .row:last-child{border:0}
   .effbox b{color:#f3e2b4}
   .muted{color:#8a7c5e}
+  .leader{display:flex;gap:10px;align-items:center;background:#0e0b07;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px}
+  .crest{width:44px;height:50px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:22px;border-radius:9px 9px 16px 16px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.18),0 2px 5px #0007}
+  .leader .nm{font-weight:600;color:var(--gold);font-size:13px}
+  .stats{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .schip{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+  .schip b{color:var(--ink)}
+  .schip.cha{border-color:#b06ad0;color:#d6a8e8}
+  .schip.cha b{color:#e6c4f2}
+  .schip.neg b{color:var(--red)}
   .turns th:nth-child(2),.turns td:nth-child(2){color:var(--spam)}
   .turns th:nth-child(3),.turns td:nth-child(3){color:var(--farmer)}
 </style>
@@ -141,6 +150,7 @@
     <div class="seph">Your start</div>
     <label>Starting family</label><select id="family"></select>
     <label style="margin-top:8px">Leader archetype (governor)</label><select id="arch"></select>
+    <div class="leader" id="leader"></div>
 
     <div class="seph">Leader traits</div>
     <div id="traits"></div>
@@ -203,10 +213,17 @@ const FAMILIES={
   Champions:{g:0,civ:0,rural:0}, Riders:{g:0,civ:0,rural:0}, Hunters:{g:0,civ:0,rural:0},
   Clerics:{g:0,civ:0,rural:0}, Traders:{g:0,civ:0,rural:0}, Artisans:{g:0,civ:0,rural:0}
 };
-const ARCH={ // cha = charisma rating granted; infra = Builder -1 worker turn
-  Builder:{cha:0,infra:true}, Orator:{cha:4,infra:false}, Diplomat:{cha:3,infra:false},
-  Judge:{cha:2,infra:false}, Scholar:{cha:0,infra:false}, Schemer:{cha:0,infra:false},
-  Tactician:{cha:0,infra:false}, Hero:{cha:0,infra:false}, Commander:{cha:0,infra:false}, Zealot:{cha:0,infra:false}
+const ARCH={ // R = rating grants (trait.xml aiRating); infra = Builder -1 worker turn; sym/col = crest
+  Builder:{infra:true, R:{Dis:3}, sym:"🛠️", col:"#c98a45"},
+  Orator:{infra:false, R:{Cha:4,Dis:-1}, sym:"🎙️", col:"#b06ad0"},
+  Diplomat:{infra:false, R:{Cha:3}, sym:"🕊️", col:"#9a6ad0"},
+  Judge:{infra:false, R:{Cha:2,Dis:2}, sym:"⚖️", col:"#7d6ad0"},
+  Scholar:{infra:false, R:{Wis:3}, sym:"📚", col:"#6fb3d6"},
+  Schemer:{infra:false, R:{Wis:4,Cou:-1}, sym:"🦂", col:"#5f9fd6"},
+  Tactician:{infra:false, R:{Dis:2,Wis:2}, sym:"♟️", col:"#9aa0a6"},
+  Hero:{infra:false, R:{Cou:3}, sym:"⚔️", col:"#d97c6b"},
+  Commander:{infra:false, R:{Cou:2,Dis:2}, sym:"🛡️", col:"#d98a5b"},
+  Zealot:{infra:false, R:{Cou:4,Wis:-1}, sym:"🔥", col:"#d96b5b"}
 };
 const TRAITS={ // GovernorEffectCity only — personality traits do NOT grant ratings (aiRatingFallback ≠ aiRating). Affable/Eloquent culture-scaled, modeled at Weak ×1
   Affable:{growth:2.0,lbl:"+2 growth (Weak)"},
@@ -238,7 +255,7 @@ $('traits').innerHTML=Object.keys(TRAITS).map(k=>
 function model(p){
   const fam=FAMILIES[p.family], arch=ARCH[p.arch];
   const tr=p.traits.map(k=>TRAITS[k]);
-  const cha = arch.cha;   // Charisma from ARCHETYPE only (aiRating→maiRating); personality traits grant no rating
+  const cha = arch.R.Cha||0;   // Charisma from ARCHETYPE only (aiRating→maiRating); personality traits grant no rating
   const civPct = 2*triBoost(cha);                                  // governor civics % modifier (rating.xml)
   const civBase = p.cv + fam.civ + tr.reduce((a,t)=>a+(t.civics||0),0);
   const civics = civBase*(1+civPct/100);
@@ -277,6 +294,13 @@ function run(){
   const m=model(p), modMax=growthMod(m,p.T), mk=1+modMax/100;
   $('e_tf').textContent = m.arch.infra ? ` →T${m.tf}` : '';   // Builder −1 (worker improvement)
   $('e_tg').textContent = m.arch.infra ? ` →T${m.tg}` : '';
+
+  // leader crest + ratings (archetype aiRating grants; Charisma feeds civics)
+  const a=ARCH[p.arch], RR=[['Wis','Wisdom'],['Cha','Charisma'],['Cou','Courage'],['Dis','Discipline']];
+  const chips=RR.map(([k,nm])=>{const v=a.R[k]||0;const cls=k==='Cha'?'cha':(v<0?'neg':'');
+    return `<span class="schip ${cls}">${nm} <b>${v>0?'+'+v:v}</b></span>`;}).join('');
+  $('leader').innerHTML=`<div class="crest" style="background:${a.col}">${a.sym}</div>`+
+    `<div><div class="nm">${p.arch} <span class="muted" style="font-weight:400">· governor</span></div><div class="stats">${chips}</div></div>`;
 
   const A=simulate(m,p,false), B=simulate(m,p,true);
   let be=null;

@@ -303,11 +303,11 @@ function run(){
   const m=model(p), modMax=growthMod(m,p.T), mk=1+modMax/100;
   $('o_tf').textContent=m.tf; $('o_tg').textContent=m.tg;   // derived from iBuildTurns (farm 3 / granary 4) − Builder
 
-  // leader crest (real game icon) + ratings (archetype aiRating; each rating shown with the yield it governs)
-  const RY={Wis:'science',Cha:'civics',Cou:'training',Dis:'money'};
+  // leader crest (real game icon) + ratings (archetype aiRating) with the real RATING_* sprites
+  const RY={Wis:'wisdom',Cha:'charisma',Cou:'courage',Dis:'discipline'};
   const RR=[['Wis','Wisdom'],['Cha','Charisma'],['Cou','Courage'],['Dis','Discipline']];
   const chips=RR.map(([k,nm])=>{const v=m.arch.R[k]||0;const cls=k==='Cha'?'cha':(v<0?'neg':'');
-    return `<span class="schip ${cls}"><img src="img/yields/${RY[k]}.png" alt="">${nm} <b>${v>0?'+'+v:v}</b></span>`;}).join('');
+    return `<span class="schip ${cls}"><img src="img/ratings/${RY[k]}.png" alt="">${nm} <b>${v>0?'+'+v:v}</b></span>`;}).join('');
   $('leader').innerHTML=`<div class="crest"><img src="img/traits/${p.arch.toLowerCase()}.png" alt="${p.arch}"></div>`+
     `<div><div class="nm">${p.arch} <span class="muted" style="font-weight:400">· governor</span></div><div class="stats">${chips}</div></div>`;
 

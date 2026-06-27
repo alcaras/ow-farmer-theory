@@ -72,7 +72,7 @@
 <li><span class="key">It's a build-queue question.</span> One queue (<code>City.cs mllBuildQueue</code>); only the front item builds, queued items decay. Settler (from <code>GROWTH</code>) and Farmer (from <code>CIVICS</code>) are mutually exclusive — the Farmer <b>pauses settlers for its build time</b> = <code>ceil(farmer civics cost ÷ civics rate)</code>. Banking civics does <b>not</b> speed it.</li>
 <li><span class="key">The citizen is free.</span> Cities start with <code>1 citizen</code> that otherwise produces nothing, so the first Farmer eats it for free.</li>
 <li><span class="key">Landowners change everything.</span> <code>+2.0 growth</code> city-wide <b>and −50% rural-specialist train time</b> → the Farmer costs <b>20 civics, not 40</b> (≈2 turns, not 4). The second settler barely slips.</li>
-<li><span class="key">Leader effect comes from traits, not a magic stat.</span> No rating modifies GROWTH; what matters is direct trait effects (<b>Affable</b> +growth, <b>Eloquent</b> +civics, <b>Cultivator</b> +50% farm) and Charisma (from archetype + traits) which %-boosts civics → faster Farmer. <b>Builder</b> archetype shaves a turn off the worker (farm/granary sooner).</li>
+<li><span class="key">Leader effects are specific and grounded.</span> No rating modifies GROWTH. Direct trait <i>governor</i> effects: <b>Affable</b> +growth, <b>Eloquent</b> +civics, <b>Cultivator</b> +50% farm — personality traits grant <b>no rating</b> (the <code>aiRatingFallback</code> on them is a stand-in for AI math, not a Charisma bonus). Charisma comes only from a <b>Charismatic archetype</b> (Orator/Diplomat/Judge), which %-boosts civics → faster Farmer. <b>Builder</b> archetype shaves a turn off the <i>worker</i> (farm/granary sooner), not the Farmer.</li>
 </ul>
 </div>
 
@@ -89,8 +89,9 @@
 <tr><td>Family — Landowners growth</td><td><code>+2.0 growth</code> (flat)</td><td>effectCity FAMILYCLASS_LANDOWNERS aiYieldRate</td></tr>
 <tr><td>Family — Patrons / Sages / Statesmen</td><td><code>+2 / +2 / +1 civics</code></td><td>effectCity FAMILYCLASS_*</td></tr>
 <tr><td>Archetype — Builder (governor)</td><td><code>−1 build turn</code> (worker)</td><td>trait.xml · EFFECTCITY_TRAIT_BUILDER · Player.cs:19757</td></tr>
-<tr><td>Trait — Affable (governor)</td><td><code>+2.0 growth</code> ×culture, +1 Cha</td><td>effectCity EFFECTCITY_TRAIT_AFFABLE aiYieldRateCulture</td></tr>
-<tr><td>Trait — Eloquent (governor)</td><td><code>+2.0 civics</code> ×culture, +1 Cha</td><td>effectCity EFFECTCITY_TRAIT_ELOQUENT</td></tr>
+<tr><td>Trait — Affable (governor)</td><td><code>+2.0 growth</code> ×culture</td><td>effectCity EFFECTCITY_TRAIT_AFFABLE aiYieldRateCulture</td></tr>
+<tr><td>Trait — Eloquent (governor)</td><td><code>+2.0 civics</code> ×culture</td><td>effectCity EFFECTCITY_TRAIT_ELOQUENT</td></tr>
+<tr><td>Personality traits grant NO rating</td><td><code>aiRatingFallback ≠ rating</code></td><td>Character.cs doAddTrait only applies maiRating</td></tr>
 <tr><td>Trait — Cultivator (governor)</td><td><code>+50%</code> farm yields</td><td>effectCity EFFECTCITY_TRAIT_CULTIVATOR aiImprovementModifier</td></tr>
 <tr><td>Charisma → civics (governor, %)</td><td><code>2 × triangleBoost(Cha)%</code></td><td>rating.xml CHARISMA aiYieldGovernorModifier 2</td></tr>
 <tr><td>Babylonia / Hanging Gardens / Freedom</td><td><code>+20% growth</code> each</td><td>effectCity aiYieldModifier YIELD_GROWTH 20</td></tr>
@@ -123,8 +124,8 @@
 <table class="l"><tr><th>Pick</th><th>Effect</th></tr>
 <tr><td style="color:var(--green)">Builder</td><td>−1 build turn → farm/granary sooner</td></tr>
 <tr><td>Orator/Diplomat/Judge</td><td>Charisma 4/3/2 → +civics%</td></tr>
-<tr><td style="color:var(--green)">Affable</td><td>+2 growth (Weak) · +1 Charisma</td></tr>
-<tr><td>Eloquent</td><td>+2 civics (Weak) · +1 Charisma</td></tr>
+<tr><td style="color:var(--green)">Affable</td><td>+2 growth (Weak culture)</td></tr>
+<tr><td>Eloquent</td><td>+2 civics (Weak culture)</td></tr>
 <tr><td style="color:var(--green)">Cultivator</td><td>+50% farm → grain growth 2.0→3.0</td></tr>
 <tr><td class="muted">Other archetypes/traits</td><td class="muted">money/sci/training — nothing here</td></tr>
 </table>
@@ -152,8 +153,8 @@
     <input type="range" id="freeT" min="1" max="70" step="1" value="12">
 
     <div class="seph">Infra timing (worker)</div>
-    <label>Farm done turn <b id="v_tf">3</b></label><input type="range" id="tf" min="1" max="8" step="1" value="3">
-    <label>Granary done turn <b id="v_tg">6</b></label><input type="range" id="tg" min="3" max="14" step="1" value="6">
+    <label>Farm done turn (base) <b><span id="v_tf">3</span><span class="muted" id="e_tf"></span></b></label><input type="range" id="tf" min="1" max="8" step="1" value="3">
+    <label>Granary done turn (base) <b><span id="v_tg">6</span><span class="muted" id="e_tg"></span></b></label><input type="range" id="tg" min="3" max="14" step="1" value="6">
 
     <div class="seph">Economy</div>
     <label>Base civics rate /turn <b id="v_cv">10</b></label><input type="range" id="cv" min="4" max="20" step="1" value="10">
@@ -187,7 +188,7 @@
 <li><b>Granary always.</b> Worker-built, off-queue; it turns grain growth into 3.2 and makes the Farmer's half worth 1.6.</li>
 <li><b>Landowners → Farmer is almost free.</b> Half-cost Farmer (~2 queue-turns) + the +2 growth: the Farmer line barely slips the next settler and pulls ahead within a couple settlers.</li>
 <li><b>Stack the growth.</b> Cultivator (+50% farm), Affable (+2), and the +20% empire modifiers all multiply settler speed and make the Farmer pay back faster (its queue cost is fixed in civics).</li>
-<li><b>Civics is the Farmer's clock.</b> Eloquent (+2 civics), Patrons/Sages (+2), and Charisma (% from archetype + Affable/Eloquent/Inspiring) all shorten the queue pause.</li>
+<li><b>Civics is the Farmer's clock.</b> Eloquent (+2 civics), Patrons/Sages (+2 civics), and a Charismatic archetype's civics% (Orator/Diplomat/Judge) all shorten the queue pause. Builder does <i>not</i> — it only speeds the worker.</li>
 <li><b>Don't stack Farmers early.</b> Each specialist already built adds <code>+5%</code> to the next, and #2+ need a <i>grown</i> citizen (100+10·size growth) + add discontent.</li>
 </ul>
 </div>
@@ -207,12 +208,11 @@ const ARCH={ // cha = charisma rating granted; infra = Builder -1 worker turn
   Judge:{cha:2,infra:false}, Scholar:{cha:0,infra:false}, Schemer:{cha:0,infra:false},
   Tactician:{cha:0,infra:false}, Hero:{cha:0,infra:false}, Commander:{cha:0,infra:false}, Zealot:{cha:0,infra:false}
 };
-const TRAITS={ // governor effects (Affable/Eloquent modeled at Weak culture ×1)
-  Affable:{cha:1,growth:2.0,lbl:"+2 growth, +1 Cha"},
-  Eloquent:{cha:1,civics:2.0,lbl:"+2 civics, +1 Cha"},
-  Inspiring:{cha:1,lbl:"+1 Cha → civics"},
+const TRAITS={ // GovernorEffectCity only — personality traits do NOT grant ratings (aiRatingFallback ≠ aiRating). Affable/Eloquent culture-scaled, modeled at Weak ×1
+  Affable:{growth:2.0,lbl:"+2 growth (Weak)"},
+  Eloquent:{civics:2.0,lbl:"+2 civics (Weak)"},
   Cultivator:{farmMul:1.5,lbl:"+50% farm growth"},
-  Cruel:{cha:-1,growth:-2.0,lbl:"−2 growth, −1 Cha"}
+  Cruel:{growth:-2.0,lbl:"−2 growth"}
 };
 const $=id=>document.getElementById(id);
 const triBoost=n=>n===0?0:Math.sign(n)*((Math.abs(n)+1)*(Math.abs(n)+2)/2);
@@ -238,8 +238,8 @@ $('traits').innerHTML=Object.keys(TRAITS).map(k=>
 function model(p){
   const fam=FAMILIES[p.family], arch=ARCH[p.arch];
   const tr=p.traits.map(k=>TRAITS[k]);
-  const cha = arch.cha + tr.reduce((a,t)=>a+(t.cha||0),0);
-  const civPct = 2*triBoost(cha);                                  // % modifier to civics
+  const cha = arch.cha;   // Charisma from ARCHETYPE only (aiRating→maiRating); personality traits grant no rating
+  const civPct = 2*triBoost(cha);                                  // governor civics % modifier (rating.xml)
   const civBase = p.cv + fam.civ + tr.reduce((a,t)=>a+(t.civics||0),0);
   const civics = civBase*(1+civPct/100);
   const farmMul = tr.reduce((a,t)=>a*(t.farmMul||1),1);            // Cultivator ×1.5
@@ -275,6 +275,8 @@ function run(){
   p.bab=$('bab').checked; p.hg=$('hg').checked; p.free=$('free').checked;
   p.traits=Object.keys(TRAITS).filter(k=>$('tr_'+k).checked);
   const m=model(p), modMax=growthMod(m,p.T), mk=1+modMax/100;
+  $('e_tf').textContent = m.arch.infra ? ` →T${m.tf}` : '';   // Builder −1 (worker improvement)
+  $('e_tg').textContent = m.arch.infra ? ` →T${m.tg}` : '';
 
   const A=simulate(m,p,false), B=simulate(m,p,true);
   let be=null;
@@ -289,9 +291,9 @@ function run(){
     `<div class="row"><span>Growth @ farmer</span><b>${(m.flat3*mk).toFixed(1)} 🍏</b></div>`+
     `<div class="row"><span>Civics/turn</span><b>${m.civics.toFixed(1)} <span class="muted">(${p.cv}+${(m.civBase-p.cv).toFixed(0)} fam/trait${m.civPct?` ×+${Math.round(m.civPct)}% Cha`:''})</span></b></div>`+
     `<div class="row"><span>Farmer cost</span><b>${m.farmerCost} civics${m.fam.rural?` <span class="muted">(LO −50%)</span>`:''}</b></div>`+
-    `<div class="row"><span>Farmer holds queue</span><b>${m.fTurns} turn${m.fTurns>1?'s':''}</b></div>`+
-    `<div class="row"><span>Farm / Granary done</span><b>T${m.tf} / T${m.tg}${m.arch.infra?` <span class="muted">(−1)</span>`:''}</b></div>`+
-    `<div class="row"><span>Charisma</span><b>${m.cha} ${m.civPct?`→ +${Math.round(m.civPct)}% civics`:'(no civics effect)'}</b></div>`;
+    `<div class="row"><span>Farm / Granary done</span><b>T${m.tf} / T${m.tg}${m.arch.infra?` <span class="muted">(Builder −1)</span>`:''}</b></div>`+
+    `<div class="row"><span>Farmer holds queue</span><b>${m.fTurns} turn${m.fTurns>1?'s':''} <span class="muted">(done T${m.tg+m.fTurns})</span></b></div>`+
+    `<div class="row"><span>Archetype Charisma</span><b>${m.cha} ${m.civPct?`→ +${Math.round(m.civPct)}% civics`:'(no civics effect)'}</b></div>`;
 
   // per-settler turn table
   let rows='';

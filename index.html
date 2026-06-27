@@ -57,14 +57,17 @@
   .effbox b{color:#f3e2b4}
   .muted{color:#8a7c5e}
   .leader{display:flex;gap:10px;align-items:center;background:#0e0b07;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px}
-  .crest{width:44px;height:50px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:22px;border-radius:9px 9px 16px 16px;box-shadow:inset 0 0 0 2px rgba(255,255,255,.18),0 2px 5px #0007}
+  .crest{width:46px;height:50px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:#0c0a06;border:1px solid var(--line);border-radius:9px}
+  .crest img{width:36px;height:40px;object-fit:contain}
   .leader .nm{font-weight:600;color:var(--gold);font-size:13px}
   .stats{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
-  .schip{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
+  .schip{font-size:11px;padding:1px 6px;border-radius:5px;background:var(--panel2);border:1px solid var(--line);color:var(--dim);display:inline-flex;align-items:center;gap:3px}
+  .schip img{width:12px;height:12px}
   .schip b{color:var(--ink)}
   .schip.cha{border-color:#b06ad0;color:#d6a8e8}
   .schip.cha b{color:#e6c4f2}
   .schip.neg b{color:var(--red)}
+  .icn{width:14px;height:14px;vertical-align:-3px;margin-left:1px}
   .turns th:nth-child(2),.turns td:nth-child(2){color:var(--spam)}
   .turns th:nth-child(3),.turns td:nth-child(3){color:var(--farmer)}
 </style>
@@ -98,6 +101,7 @@
 <tr><td>Family — Landowners growth</td><td><code>+2.0 growth</code> (flat)</td><td>effectCity FAMILYCLASS_LANDOWNERS aiYieldRate</td></tr>
 <tr><td>Family — Patrons / Sages / Statesmen</td><td><code>+2 / +2 / +1 civics</code></td><td>effectCity FAMILYCLASS_*</td></tr>
 <tr><td>Archetype — Builder (governor)</td><td><code>−1 build turn</code> (worker)</td><td>trait.xml · EFFECTCITY_TRAIT_BUILDER · Player.cs:19757</td></tr>
+<tr><td>Worker build turns (own territory)</td><td><code>farm 3, granary 4</code>; −1 Builder; done = start+N−1</td><td>improvement.xml iBuildTurns · Player.calculateBuildTurns · Tile/Unit countdown</td></tr>
 <tr><td>Trait — Affable (governor)</td><td><code>+2.0 growth</code> ×culture</td><td>effectCity EFFECTCITY_TRAIT_AFFABLE aiYieldRateCulture</td></tr>
 <tr><td>Trait — Eloquent (governor)</td><td><code>+2.0 civics</code> ×culture</td><td>effectCity EFFECTCITY_TRAIT_ELOQUENT</td></tr>
 <tr><td>Personality traits grant NO rating</td><td><code>aiRatingFallback ≠ rating</code></td><td>Character.cs doAddTrait only applies maiRating</td></tr>
@@ -163,12 +167,13 @@
     <input type="range" id="freeT" min="1" max="70" step="1" value="12">
 
     <div class="seph">Infra timing (worker)</div>
-    <label>Farm done turn (base) <b><span id="v_tf">3</span><span class="muted" id="e_tf"></span></b></label><input type="range" id="tf" min="1" max="8" step="1" value="3">
-    <label>Granary done turn (base) <b><span id="v_tg">6</span><span class="muted" id="e_tg"></span></b></label><input type="range" id="tg" min="3" max="14" step="1" value="6">
+    <label>Worker starts farm (turn) <b id="v_ws">1</b></label><input type="range" id="ws" min="1" max="6" step="1" value="1">
+    <label>Worker travel farm→granary <b id="v_tv">1</b></label><input type="range" id="tv" min="0" max="4" step="1" value="1">
+    <label style="color:var(--gold2)">→ Farm done T<b id="o_tf">?</b> · Granary done T<b id="o_tg">?</b></label>
 
     <div class="seph">Economy</div>
     <label>Base civics rate /turn <b id="v_cv">10</b></label><input type="range" id="cv" min="4" max="20" step="1" value="10">
-    <label>First settler 🍏 <b id="v_sb">80</b></label><input type="range" id="sb" min="60" max="110" step="5" value="80">
+    <label>First settler <img class="icn" src="img/yields/growth.png"> <b id="v_sb">80</b></label><input type="range" id="sb" min="60" max="110" step="5" value="80">
     <label>Growth banked at start (settler&nbsp;1) <b id="v_bank">32</b></label><input type="range" id="bank" min="0" max="79" step="1" value="32">
     <label>Horizon (turns) <b id="v_T">55</b></label><input type="range" id="T" min="20" max="90" step="1" value="55">
 
@@ -249,7 +254,7 @@ $('family').value='Landowners'; $('arch').value='Builder';
 $('traits').innerHTML=Object.keys(TRAITS).map(k=>
   `<label class="ck"><span><input type="checkbox" id="tr_${k}"> ${k}</span><b class="muted">${TRAITS[k].lbl}</b></label>`).join('');
 
-['family','arch','tf','tg','cv','sb','T','hgT','freeT','bank'].forEach(id=>$(id).addEventListener('input',run));
+['family','arch','ws','tv','cv','sb','T','hgT','freeT','bank'].forEach(id=>$(id).addEventListener('input',run));
 ['bab','hg','free',...Object.keys(TRAITS).map(k=>'tr_'+k)].forEach(id=>$(id).addEventListener('change',run));
 
 function model(p){
@@ -265,9 +270,13 @@ function model(p){
   const flat0=12+famG, flat1=12+famG+grain, flat2=12+famG+gwg+2, flat3=flat2+1.0+0.5*gwg;
   const farmerCost=Math.max(1,Math.round(40*(1+fam.rural/100)));   // LO −50% → 20
   const fTurns=Math.max(1,Math.ceil(farmerCost/civics));
-  const tf=Math.max(1,p.tf-(arch.infra?1:0)), tg=Math.max(tf+1,p.tg-(arch.infra?1:0));
+  // worker improvement timing — calculateBuildTurns: iBuildTurns − Builder(1), min 1; active when turns-left hits 0 → done = start + N − 1
+  const b=arch.infra?1:0;
+  const farmBuild=Math.max(1,3-b), granBuild=Math.max(1,4-b);      // IMPROVEMENT_FARM 3 / GRANARY 4
+  const tf=p.ws+farmBuild-1;                                       // farm active turn
+  const tg=tf+p.tv+granBuild-1;                                    // worker frees at tf, travels tv, builds granBuild
   return {fam,arch,cha,civPct,civBase,civics,farmMul,grain,gwg,famG,flat0,flat1,flat2,flat3,
-          farmerCost,fTurns,tf,tg,bab:p.bab,hg:p.hg,hgT:p.hgT,free:p.free,freeT:p.freeT};
+          farmerCost,fTurns,tf,tg,farmBuild,granBuild,bab:p.bab,hg:p.hg,hgT:p.hgT,free:p.free,freeT:p.freeT};
 }
 function growthMod(m,t){ return (m.bab?20:0)+(m.hg&&t>=m.hgT?20:0)+(m.free&&t>=m.freeT?20:0); }
 
@@ -287,19 +296,19 @@ function simulate(m,p,isB){
 
 function run(){
   const p={family:$('family').value, arch:$('arch').value};
-  ['tf','tg','cv','sb','T','hgT','freeT','bank'].forEach(id=>p[id]=parseFloat($(id).value));
-  ['tf','tg','cv','sb','T','hgT','freeT','bank'].forEach(id=>$('v_'+id).textContent=p[id]);
+  ['ws','tv','cv','sb','T','hgT','freeT','bank'].forEach(id=>p[id]=parseFloat($(id).value));
+  ['ws','tv','cv','sb','T','hgT','freeT','bank'].forEach(id=>$('v_'+id).textContent=p[id]);
   p.bab=$('bab').checked; p.hg=$('hg').checked; p.free=$('free').checked;
   p.traits=Object.keys(TRAITS).filter(k=>$('tr_'+k).checked);
   const m=model(p), modMax=growthMod(m,p.T), mk=1+modMax/100;
-  $('e_tf').textContent = m.arch.infra ? ` →T${m.tf}` : '';   // Builder −1 (worker improvement)
-  $('e_tg').textContent = m.arch.infra ? ` →T${m.tg}` : '';
+  $('o_tf').textContent=m.tf; $('o_tg').textContent=m.tg;   // derived from iBuildTurns (farm 3 / granary 4) − Builder
 
-  // leader crest + ratings (archetype aiRating grants; Charisma feeds civics)
-  const a=ARCH[p.arch], RR=[['Wis','Wisdom'],['Cha','Charisma'],['Cou','Courage'],['Dis','Discipline']];
-  const chips=RR.map(([k,nm])=>{const v=a.R[k]||0;const cls=k==='Cha'?'cha':(v<0?'neg':'');
-    return `<span class="schip ${cls}">${nm} <b>${v>0?'+'+v:v}</b></span>`;}).join('');
-  $('leader').innerHTML=`<div class="crest" style="background:${a.col}">${a.sym}</div>`+
+  // leader crest (real game icon) + ratings (archetype aiRating; each rating shown with the yield it governs)
+  const RY={Wis:'science',Cha:'civics',Cou:'training',Dis:'money'};
+  const RR=[['Wis','Wisdom'],['Cha','Charisma'],['Cou','Courage'],['Dis','Discipline']];
+  const chips=RR.map(([k,nm])=>{const v=m.arch.R[k]||0;const cls=k==='Cha'?'cha':(v<0?'neg':'');
+    return `<span class="schip ${cls}"><img src="img/yields/${RY[k]}.png" alt="">${nm} <b>${v>0?'+'+v:v}</b></span>`;}).join('');
+  $('leader').innerHTML=`<div class="crest"><img src="img/traits/${p.arch.toLowerCase()}.png" alt="${p.arch}"></div>`+
     `<div><div class="nm">${p.arch} <span class="muted" style="font-weight:400">· governor</span></div><div class="stats">${chips}</div></div>`;
 
   const A=simulate(m,p,false), B=simulate(m,p,true);
@@ -311,11 +320,11 @@ function run(){
   const modParts=[m.bab&&'Babylonia',m.hg&&'HG',m.free&&'Freedom'].filter(Boolean).join('+');
   $('eff').innerHTML=
     `<div class="row"><span>Growth modifier</span><b>${modMax?`+${modMax}% <span class="muted">(${modParts})</span>`:'—'}</b></div>`+
-    `<div class="row"><span>Growth @ granary</span><b>${(m.flat2*mk).toFixed(1)} 🍏</b></div>`+
-    `<div class="row"><span>Growth @ farmer</span><b>${(m.flat3*mk).toFixed(1)} 🍏</b></div>`+
-    `<div class="row"><span>Civics/turn</span><b>${m.civics.toFixed(1)} <span class="muted">(${p.cv}+${(m.civBase-p.cv).toFixed(0)} fam/trait${m.civPct?` ×+${Math.round(m.civPct)}% Cha`:''})</span></b></div>`+
-    `<div class="row"><span>Farmer cost</span><b>${m.farmerCost} civics${m.fam.rural?` <span class="muted">(LO −50%)</span>`:''}</b></div>`+
-    `<div class="row"><span>Farm / Granary done</span><b>T${m.tf} / T${m.tg}${m.arch.infra?` <span class="muted">(Builder −1)</span>`:''}</b></div>`+
+    `<div class="row"><span>Growth @ granary</span><b>${(m.flat2*mk).toFixed(1)} <img class="icn" src="img/yields/growth.png"></b></div>`+
+    `<div class="row"><span>Growth @ farmer</span><b>${(m.flat3*mk).toFixed(1)} <img class="icn" src="img/yields/growth.png"></b></div>`+
+    `<div class="row"><span>Civics/turn</span><b>${m.civics.toFixed(1)} <img class="icn" src="img/yields/civics.png"> <span class="muted">(${p.cv}+${(m.civBase-p.cv).toFixed(0)} fam/trait${m.civPct?` ×+${Math.round(m.civPct)}% Cha`:''})</span></b></div>`+
+    `<div class="row"><span>Farmer cost</span><b>${m.farmerCost} <img class="icn" src="img/yields/civics.png">${m.fam.rural?` <span class="muted">(LO −50%)</span>`:''}</b></div>`+
+    `<div class="row"><span>Farm / Granary done</span><b>T${m.tf} / T${m.tg} <span class="muted">(${m.farmBuild}+${m.granBuild}t${m.arch.infra?', Builder −1':''})</span></b></div>`+
     `<div class="row"><span>Farmer holds queue</span><b>${m.fTurns} turn${m.fTurns>1?'s':''} <span class="muted">(done T${m.tg+m.fTurns})</span></b></div>`+
     `<div class="row"><span>Archetype Charisma</span><b>${m.cha} ${m.civPct?`→ +${Math.round(m.civPct)}% civics`:'(no civics effect)'}</b></div>`;
 
@@ -329,7 +338,7 @@ function run(){
 
   // readout
   const adv=((m.flat3-m.flat2)*mk).toFixed(1);
-  let msg=`<b>${p.family} · ${p.arch}${p.traits.length?' · '+p.traits.join('+'):''}${modMax?` · +${modMax}%`:''}</b>: Farmer = <b>${m.farmerCost} civics</b> → holds queue <b>${m.fTurns} turn${m.fTurns>1?'s':''}</b>, then <b>+${adv}🍏/turn</b> over spam. `;
+  let msg=`<b>${p.family} · ${p.arch}${p.traits.length?' · '+p.traits.join('+'):''}${modMax?` · +${modMax}%`:''}</b>: Farmer = <b>${m.farmerCost} civics</b> → holds queue <b>${m.fTurns} turn${m.fTurns>1?'s':''}</b>, then <b>+${adv} growth/turn</b> over spam. `;
   msg+=be?`Settlers cross at <b>T${be}</b> (${B.cum[p.T-1]} vs ${A.cum[p.T-1]} by T${p.T}). `:`No crossover within ${p.T} turns. `;
   if(m.fam.rural) msg+=`Landowners: half-cost Farmer + ${m.fam.g} growth. `;
   if(m.farmMul>1) msg+=`Cultivator pushes grain growth to ${m.grain.toFixed(1)} (→${m.gwg.toFixed(1)} w/ granary). `;
